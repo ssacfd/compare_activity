@@ -77,6 +77,13 @@
   }
   .activity-label.loaded { color: var(--text); }
 
+  .activity-stats {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
   button, select, input[type=text], input[type=number] {
     font-family: var(--sans);
     font-size: 0.82rem;
@@ -310,6 +317,35 @@ function getDomainArray(data, mode) {
   return mode === "distance" ? data.distKm : data.elapsedMin;
 }
 
+function formatPace(minPerKm) {
+  if (minPerKm === null || minPerKm === undefined || !isFinite(minPerKm)) return "–";
+  const totalSec = Math.round(minPerKm * 60);
+  const m = Math.floor(totalSec / 60), s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}/km`;
+}
+
+function formatDuration(totalSeconds) {
+  totalSeconds = Math.round(totalSeconds || 0);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function formatHr(avgHr) {
+  return (avgHr === null || avgHr === undefined) ? "–" : `${Math.round(avgHr)} bpm`;
+}
+
+function formatDist(km) {
+  return `${(km || 0).toFixed(2)} km`;
+}
+
+function formatStatsLine(stats) {
+  return `Avg HR ${formatHr(stats.avgHr)}  ·  Avg Pace ${formatPace(stats.avgPaceMinPerKm)}  ·  `
+       + `Time ${formatDuration(stats.totalSeconds)}  ·  Dist ${formatDist(stats.totalDistKm)}`;
+}
+
 function parseGPX(text) {
   const doc = new DOMParser().parseFromString(text, "application/xml");
   if (doc.querySelector("parsererror")) throw new Error("Could not parse this file as GPX/XML.");
@@ -356,6 +392,17 @@ function parseGPX(text) {
 
   const t0 = data.time[0];
   data.elapsedMin = data.time.map(t => (t && t0) ? (t - t0) / 60000 : null);
+
+  const lastTime = data.time.length ? data.time[data.time.length - 1] : null;
+  const totalDistKm = data.distKm.length ? data.distKm[data.distKm.length - 1] : 0;
+  const totalSeconds = (t0 && lastTime) ? (lastTime - t0) / 1000 : 0;
+
+  let hrSum = 0, hrCount = 0;
+  for (const v of data.hr) { if (v !== null && v !== undefined) { hrSum += v; hrCount++; } }
+  const avgHr = hrCount ? hrSum / hrCount : null;
+  const avgPaceMinPerKm = totalDistKm > 0 ? (totalSeconds / 60) / totalDistKm : null;
+
+  data.stats = { avgHr, avgPaceMinPerKm, totalSeconds, totalDistKm };
 
   let label = firstText(doc, ["trk > name", "metadata > name", "gpx > name"]) ||
               firstText(doc, ["trk > desc", "metadata > desc", "gpx > desc"]) ||
@@ -414,6 +461,7 @@ function addActivityRow() {
     <button class="load-btn">Load GPX</button>
     <input type="file" accept=".gpx" style="display:none">
     <span class="activity-label">No file loaded</span>
+    <span class="activity-stats"></span>
     <input type="color" value="${row.color}">
     <button class="remove-btn">Remove</button>
   `;
@@ -422,6 +470,7 @@ function addActivityRow() {
   const fileInput = el.querySelector("input[type=file]");
   const loadBtn = el.querySelector(".load-btn");
   const labelSpan = el.querySelector(".activity-label");
+  const statsSpan = el.querySelector(".activity-stats");
   const colorInput = el.querySelector("input[type=color]");
   const removeBtn = el.querySelector(".remove-btn");
 
@@ -435,6 +484,7 @@ function addActivityRow() {
         row.data = parseGPX(reader.result);
         labelSpan.textContent = row.data.label;
         labelSpan.classList.add("loaded");
+        statsSpan.textContent = formatStatsLine(row.data.stats);
         redrawAll();
       } catch (err) {
         alert("Failed to parse GPX: " + err.message);
