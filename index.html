@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPX Activity Compare</title>
+<style>
+  :root {
+    --bg: #14181c;
+    --panel: #1c2126;
+    --panel-alt: #20262c;
+    --border: #2a3138;
+    --text: #e9ece9;
+    --text-dim: #8b959c;
+    --accent: #e8a33d;
+    --accent-dim: #7a5f2c;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin: 0 0 4px 0;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin: 0 0 18px 0;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+
+  .panel-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .activity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .activity-row:last-of-type { border-bottom: none; }
+
+  .activity-label {
+    flex: 1;
+    min-width: 180px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+  .activity-label.loaded { color: var(--text); }
+
+  button, select, input[type=text], input[type=number] {
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 10px;
+  }
+
+  button {
+    cursor: pointer;
+    color: var(--text);
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary {
+    background: var(--accent);
+    color: #14181c;
+    font-weight: 600;
+    border: none;
+  }
+  button.primary:hover { opacity: 0.9; }
+
+  input[type=color] {
+    width: 32px; height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: none;
+    padding: 2px;
+    cursor: pointer;
+  }
+
+  input[type=number] { width: 80px; }
+
+  .field-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .field-label {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+
+  .xaxis-bar {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .charts-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .chart-column {
+    flex: 1 1 460px;
+    min-width: 320px;
+  }
+
+  .chart-controls {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  canvas {
+    width: 100%;
+    height: 420px;
+    display: block;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: crosshair;
+  }
+
+  .note {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  @media (max-width: 820px) {
+    .charts-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<h1>GPX Activity Compare</h1>
+<p class="subtitle">Runs entirely in your browser — no files are uploaded anywhere.</p>
+
+<div class="panel">
+  <div class="panel-title">Activities</div>
+  <div id="activities-container"></div>
+  <button class="primary" id="add-activity-btn" style="margin-top:10px;">+ Add Activity</button>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Linked X-axis (applies to both charts)</div>
+  <div class="xaxis-bar">
+    <div class="field-group">
+      <span class="field-label">X axis:</span>
+      <select id="xaxis-mode">
+        <option value="time">Time (min)</option>
+        <option value="distance">Distance (km)</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <span class="field-label">X min:</span>
+      <input type="number" id="xmin-input" step="any">
+      <span class="field-label">X max:</span>
+      <input type="number" id="xmax-input" step="any">
+      <button id="xrange-apply">Apply</button>
+      <button id="xrange-auto">Auto</button>
+    </div>
+    <button id="clear-marker-btn">Clear marker</button>
+  </div>
+</div>
+
+<div class="charts-row">
+  <div class="chart-column" id="left-column"></div>
+  <div class="chart-column" id="right-column"></div>
+</div>
+
+<p class="note">
+  Click and drag inside either chart to move the marker. On Route Map, the marker snaps to
+  the nearest point on any route; on other charts it's driven directly by the X position.
+  Both charts stay in sync since the marker is stored as one Time/Distance value, not a pixel.
+</p>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------
+// GPX parsing
+// ---------------------------------------------------------------------
+
+const CADENCE_MULTIPLIER = 2; // Garmin often stores single-leg cadence; x2 = total steps/min
+
+function findExtValue(trkpt, tagNames) {
+  const all = trkpt.getElementsByTagName("*");
+  for (let i = 0; i < all.length; i++) {
+    const el = all[i];
+    const localName = (el.localName || el.tagName).toLowerCase();
+    if (tagNames.includes(localName)) {
+      const v = parseFloat(el.textContent);
+      if (!isNaN(v)) return v;
+    }
+  }
+  return null;
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000.0;
+  const toRad = d => d * Math.PI / 180;
+  const phi1 = toRad(lat1), phi2 = toRad(lat2);
+  const dphi = toRad(lat2 - lat1);
+  const dlambda = toRad(lon2 - lon1);
+  const a = Math.sin(dphi / 2) ** 2 + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dlambda / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function firstText(doc, selectors) {
+  for (const sel of selectors) {
+    const el = doc.querySelector(sel);
+    if (el && el.textContent.trim()) return el.textContent.trim();
+  }
+  return null;
+}
+
+function smooth(values, window = 9) {
+  const n = values.length;
+  const out = new Array(n).fill(null);
+  for (let i = 0; i < n; i++) {
+    const lo = Math.max(0, i - Math.floor(window / 2));
+    const hi = Math.min(n, i + Math.floor(window / 2) + 1);
+    let sum = 0, count = 0;
+    for (let j = lo; j < hi; j++) {
+      if (values[j] !== null && values[j] !== undefined) { sum += values[j]; count++; }
+    }
+    out[i] = count ? sum / count : null;
+  }
+  return out;
+}
+
+function nearestIndex(arr, target) {
+  let bestIdx = null, bestDiff = null;
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i];
+    if (v === null || v === undefined) continue;
+    const diff = Math.abs(v - target);
+    if (bestDiff === null || diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function getDomainArray(data, mode) {
+  return mode === "distance" ? data.distKm : data.elapsedMin;
+}
+
+function parseGPX(text) {
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  if (doc.querySelector("parsererror")) throw new Error("Could not parse this file as GPX/XML.");
+
+  const trkpts = Array.from(doc.getElementsByTagName("trkpt"));
+  const data = { time: [], lat: [], lon: [], ele: [], hr: [], cad: [], pace: [], distKm: [] };
+
+  let prevLat = null, prevLon = null, prevTime = null, cumDistM = 0;
+
+  for (const pt of trkpts) {
+    const lat = parseFloat(pt.getAttribute("lat"));
+    const lon = parseFloat(pt.getAttribute("lon"));
+    const eleEl = pt.getElementsByTagName("ele")[0];
+    const ele = eleEl ? parseFloat(eleEl.textContent) : null;
+    const timeEl = pt.getElementsByTagName("time")[0];
+    const time = timeEl ? new Date(timeEl.textContent) : null;
+
+    let hr = findExtValue(pt, ["hr"]);
+    let cad = findExtValue(pt, ["cad"]);
+    if (cad !== null) cad = cad * CADENCE_MULTIPLIER;
+
+    let paceMinPerKm = null;
+    if (prevLat !== null && time && prevTime) {
+      const distM = haversine(prevLat, prevLon, lat, lon);
+      const dtS = (time - prevTime) / 1000;
+      cumDistM += distM;
+      if (distM > 0.5 && dtS > 0) {
+        const candidate = (dtS / 60) / (distM / 1000);
+        if (candidate <= 20) paceMinPerKm = candidate;
+      }
+    }
+
+    data.time.push(time);
+    data.lat.push(lat);
+    data.lon.push(lon);
+    data.ele.push(ele);
+    data.hr.push(hr);
+    data.cad.push(cad);
+    data.pace.push(paceMinPerKm);
+    data.distKm.push(cumDistM / 1000);
+
+    prevLat = lat; prevLon = lon; prevTime = time;
+  }
+
+  const t0 = data.time[0];
+  data.elapsedMin = data.time.map(t => (t && t0) ? (t - t0) / 60000 : null);
+
+  let label = firstText(doc, ["trk > name", "metadata > name", "gpx > name"]) ||
+              firstText(doc, ["trk > desc", "metadata > desc", "gpx > desc"]) ||
+              "Activity";
+  if (t0) {
+    const pad = n => String(n).padStart(2, "0");
+    label += ` (${t0.getFullYear()}-${pad(t0.getMonth()+1)}-${pad(t0.getDate())} ${pad(t0.getHours())}:${pad(t0.getMinutes())})`;
+  }
+  data.label = label;
+
+  return data;
+}
+
+// ---------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------
+
+const CHART_OPTIONS = ["Route Map", "Heart Rate", "Cadence", "Pace", "Elevation"];
+const FIELD_MAP = {
+  "Heart Rate": { key: "hr", yLabel: "BPM" },
+  "Cadence": { key: "cad", yLabel: "Steps/min" },
+  "Pace": { key: "pace", yLabel: "min/km", invert: true },
+  "Elevation": { key: "ele", yLabel: "Elevation (m)" },
+};
+const COLOR_PALETTE = [
+  "#1f77b4", "#d62728", "#2ca02c", "#ff7f0e",
+  "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
+  "#bcbd22", "#17becf",
+];
+
+// ---------------------------------------------------------------------
+// App state
+// ---------------------------------------------------------------------
+
+const App = {
+  activities: [],   // {id, data, color}
+  nextId: 0,
+  xAxisMode: "time",
+  sharedXMin: null,
+  sharedXMax: null,
+  markerX: null,    // value in shared-domain units
+  panels: [],
+};
+
+function defaultColor(i) { return COLOR_PALETTE[i % COLOR_PALETTE.length]; }
+
+function addActivityRow() {
+  const id = App.nextId++;
+  const row = { id, data: null, color: defaultColor(App.activities.length) };
+  App.activities.push(row);
+
+  const container = document.getElementById("activities-container");
+  const el = document.createElement("div");
+  el.className = "activity-row";
+  el.innerHTML = `
+    <button class="load-btn">Load GPX</button>
+    <input type="file" accept=".gpx" style="display:none">
+    <span class="activity-label">No file loaded</span>
+    <input type="color" value="${row.color}">
+    <button class="remove-btn">Remove</button>
+  `;
+  container.appendChild(el);
+
+  const fileInput = el.querySelector("input[type=file]");
+  const loadBtn = el.querySelector(".load-btn");
+  const labelSpan = el.querySelector(".activity-label");
+  const colorInput = el.querySelector("input[type=color]");
+  const removeBtn = el.querySelector(".remove-btn");
+
+  loadBtn.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        row.data = parseGPX(reader.result);
+        labelSpan.textContent = row.data.label;
+        labelSpan.classList.add("loaded");
+        redrawAll();
+      } catch (err) {
+        alert("Failed to parse GPX: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  colorInput.addEventListener("input", () => {
+    row.color = colorInput.value;
+    redrawAll();
+  });
+
+  removeBtn.addEventListener("click", () => {
+    el.remove();
+    App.activities = App.activities.filter(a => a.id !== id);
+    redrawAll();
+  });
+}
+
+document.getElementById("add-activity-btn").addEventListener("click", addActivityRow);
+
+// ---------------------------------------------------------------------
+// Shared X-axis controls
+// ---------------------------------------------------------------------
+
+const xaxisModeSelect = document.getElementById("xaxis-mode");
+const xminInput = document.getElementById("xmin-input");
+const xmaxInput = document.getElementById("xmax-input");
+
+xaxisModeSelect.addEventListener("change", () => {
+  App.xAxisMode = xaxisModeSelect.value;
+  App.markerX = null;          // a marker value means something different in each mode
+  App.sharedXMin = null;
+  App.sharedXMax = null;
+  xminInput.value = ""; xmaxInput.value = "";
+  redrawAll();
+});
+
+document.getElementById("xrange-apply").addEventListener("click", () => {
+  const minText = xminInput.value.trim(), maxText = xmaxInput.value.trim();
+  App.sharedXMin = minText ? parseFloat(minText) : null;
+  App.sharedXMax = maxText ? parseFloat(maxText) : null;
+  redrawAll();
+});
+
+document.getElementById("xrange-auto").addEventListener("click", () => {
+  xminInput.value = ""; xmaxInput.value = "";
+  App.sharedXMin = null; App.sharedXMax = null;
+  redrawAll();
+});
+
+document.getElementById("clear-marker-btn").addEventListener("click", () => {
+  App.markerX = null;
+  redrawAll();
+});
+
+// ---------------------------------------------------------------------
+// Chart panel
+// ---------------------------------------------------------------------
+
+function createChartPanel(containerId, title, defaultChart) {
+  const container = document.getElementById(containerId);
+  const panel = {
+    chartType: defaultChart,
+    yMin: null, yMax: null,
+    dragging: false,
+    scales: null,   // set each redraw; used by mouse handlers
+  };
+
+  container.innerHTML = `
+    <canvas></canvas>
+    <div class="panel" style="margin-top:8px;">
+      <div class="panel-title">${title}</div>
+      <div class="chart-controls">
+        <div class="field-group">
+          <span class="field-label">Chart:</span>
+          <select class="chart-type-select">
+            ${CHART_OPTIONS.map(o => `<option value="${o}" ${o===defaultChart?"selected":""}>${o}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field-group">
+          <span class="field-label">Y min:</span>
+          <input type="number" class="ymin-input" step="any">
+          <span class="field-label">Y max:</span>
+          <input type="number" class="ymax-input" step="any">
+          <button class="yrange-apply">Apply</button>
+          <button class="yrange-auto">Auto</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  panel.canvas = container.querySelector("canvas");
+  panel.ctx = panel.canvas.getContext("2d");
+  const chartSelect = container.querySelector(".chart-type-select");
+  const yminInput = container.querySelector(".ymin-input");
+  const ymaxInput = container.querySelector(".ymax-input");
+
+  chartSelect.addEventListener("change", () => {
+    panel.chartType = chartSelect.value;
+    panel.yMin = null; panel.yMax = null;
+    yminInput.value = ""; ymaxInput.value = "";
+    panel.redraw();
+  });
+
+  container.querySelector(".yrange-apply").addEventListener("click", () => {
+    const minText = yminInput.value.trim(), maxText = ymaxInput.value.trim();
+    panel.yMin = minText ? parseFloat(minText) : null;
+    panel.yMax = maxText ? parseFloat(maxText) : null;
+    panel.redraw();
+  });
+
+  container.querySelector(".yrange-auto").addEventListener("click", () => {
+    yminInput.value = ""; ymaxInput.value = "";
+    panel.yMin = null; panel.yMax = null;
+    panel.redraw();
+  });
+
+  setupCanvasInteraction(panel);
+  panel.redraw = () => drawPanel(panel);
+
+  window.addEventListener("resize", () => panel.redraw());
+
+  App.panels.push(panel);
+  return panel;
+}
+
+function setupCanvasInteraction(panel) {
+  const canvas = panel.canvas;
+
+  function handlePointer(evt) {
+    if (!panel.scales) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = evt.clientX - rect.left;
+    const py = evt.clientY - rect.top;
+
+    if (panel.scales.isMap) {
+      const lon = panel.scales.xInv(px);
+      const lat = panel.scales.yInv(py);
+      const found = setMarkerFromMapClick(lon, lat);
+      if (found) redrawAll();
+    } else {
+      const xVal = panel.scales.xInv(px);
+      App.markerX = xVal;
+      redrawAll();
+    }
+  }
+
+  canvas.addEventListener("mousedown", (evt) => { panel.dragging = true; handlePointer(evt); });
+  window.addEventListener("mousemove", (evt) => { if (panel.dragging) handlePointer(evt); });
+  window.addEventListener("mouseup", () => { panel.dragging = false; });
+
+  canvas.addEventListener("touchstart", (evt) => {
+    panel.dragging = true;
+    handlePointer(evt.touches[0]);
+    evt.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener("touchmove", (evt) => {
+    if (panel.dragging) { handlePointer(evt.touches[0]); evt.preventDefault(); }
+  }, { passive: false });
+  canvas.addEventListener("touchend", () => { panel.dragging = false; });
+}
+
+function setMarkerFromMapClick(clickLon, clickLat) {
+  const loaded = App.activities.filter(a => a.data);
+  if (!loaded.length) return false;
+
+  let best = null; // {d2, row, idx}
+  for (const row of loaded) {
+    const lons = row.data.lon, lats = row.data.lat;
+    for (let i = 0; i < lons.length; i++) {
+      const d2 = (lons[i] - clickLon) ** 2 + (lats[i] - clickLat) ** 2;
+      if (!best || d2 < best.d2) best = { d2, row, idx: i };
+    }
+  }
+  if (!best) return false;
+  const domainArr = getDomainArray(best.row.data, App.xAxisMode);
+  App.markerX = domainArr[best.idx];
+  return true;
+}
+
+function formatMarkerText() {
+  if (App.markerX === null) return "";
+  const unit = App.xAxisMode === "distance" ? "km" : "min";
+  return `${App.markerX.toFixed(2)} ${unit}`;
+}
+
+// ---------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------
+
+function autoRange(arrays) {
+  let min = null, max = null;
+  for (const arr of arrays) {
+    for (const v of arr) {
+      if (v === null || v === undefined || isNaN(v)) continue;
+      if (min === null || v < min) min = v;
+      if (max === null || v > max) max = v;
+    }
+  }
+  if (min === null) return [0, 1];
+  if (min === max) return [min - 1, max + 1];
+  const pad = (max - min) * 0.05;
+  return [min - pad, max + pad];
+}
+
+function drawPanel(panel) {
+  const canvas = panel.canvas;
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth;
+  const cssHeight = canvas.clientHeight;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  const ctx = panel.ctx;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+  const loaded = App.activities.filter(a => a.data);
+  if (!loaded.length) {
+    ctx.fillStyle = "#8b959c";
+    ctx.font = "13px ui-sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Load one or more GPX files to begin", cssWidth / 2, cssHeight / 2);
+    panel.scales = null;
+    return;
+  }
+
+  const margin = { left: 55, right: 20, top: 30, bottom: 40 };
+  const plotW = cssWidth - margin.left - margin.right;
+  const plotH = cssHeight - margin.top - margin.bottom;
+
+  if (panel.chartType === "Route Map") {
+    drawRouteMap(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, plotH);
+  } else {
+    drawDomainChart(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, plotH);
+  }
+}
+
+function drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, xLabel, yLabel, title) {
+  ctx.strokeStyle = "#2a3138";
+  ctx.fillStyle = "#8b959c";
+  ctx.font = "11px ui-monospace, monospace";
+  ctx.lineWidth = 1;
+
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i < yTicks.length; i++) {
+    const py = yTicks[i];
+    ctx.beginPath();
+    ctx.moveTo(margin.left, py);
+    ctx.lineTo(margin.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(yTickLabels[i], margin.left - 8, py);
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let i = 0; i < xTicks.length; i++) {
+    ctx.fillText(xTickLabels[i], xTicks[i], margin.top + plotH + 8);
+  }
+
+  ctx.fillStyle = "#e9ece9";
+  ctx.font = "12px ui-sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(xLabel, margin.left + plotW / 2, margin.top + plotH + 26);
+
+  ctx.save();
+  ctx.translate(14, margin.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+
+  ctx.font = "13px ui-sans-serif";
+  ctx.fillStyle = "#e8a33d";
+  ctx.textAlign = "left";
+  ctx.fillText(title, margin.left, 16);
+}
+
+function drawLegendTopRight(ctx, cssWidth, margin, entries) {
+  ctx.font = "11px ui-sans-serif";
+  let ly = margin.top + 2;
+  for (const e of entries) {
+    const textWidth = ctx.measureText(e.label).width;
+    const boxRight = cssWidth - 8;
+    ctx.fillStyle = e.color;
+    ctx.fillRect(boxRight - textWidth - 16, ly, 9, 9);
+    ctx.fillStyle = "#e9ece9";
+    ctx.textAlign = "right";
+    ctx.fillText(e.label, boxRight, ly + 9);
+    ly += 15;
+  }
+}
+
+function drawMarkerBadge(ctx, margin, text) {
+  if (!text) return;
+  ctx.font = "12px ui-monospace, monospace";
+  const w = ctx.measureText(text).width + 14;
+  ctx.fillStyle = "rgba(255, 251, 224, 0.92)";
+  ctx.strokeStyle = "#555555";
+  ctx.lineWidth = 1;
+  const x = margin.left + 4, y = margin.top + 4, h = 18;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, 4); else ctx.rect(x, y, w, h);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#14181c";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + 7, y + h / 2 + 1);
+}
+
+function drawDomainChart(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, plotH) {
+  const field = FIELD_MAP[panel.chartType];
+  const mode = App.xAxisMode;
+  const xLabel = mode === "distance" ? "Distance (km)" : "Elapsed time (min)";
+
+  const series = loaded.map(row => ({
+    x: getDomainArray(row.data, mode),
+    y: smooth(row.data[field.key]),
+    color: row.color,
+    label: row.data.label,
+  }));
+
+  let [xMin, xMax] = autoRange(series.map(s => s.x));
+  if (App.sharedXMin !== null) xMin = App.sharedXMin;
+  if (App.sharedXMax !== null) xMax = App.sharedXMax;
+
+  let [yMin, yMax] = autoRange(series.map(s => s.y));
+  if (panel.yMin !== null) yMin = panel.yMin;
+  if (panel.yMax !== null) yMax = panel.yMax;
+
+  const invert = !!field.invert;
+
+  const xScale = v => margin.left + (v - xMin) / (xMax - xMin) * plotW;
+  const xInv = px => xMin + (px - margin.left) / plotW * (xMax - xMin);
+  const yScale = invert
+    ? (v => margin.top + (v - yMin) / (yMax - yMin) * plotH)
+    : (v => margin.top + plotH - (v - yMin) / (yMax - yMin) * plotH);
+  const yInv = invert
+    ? (py => yMin + (py - margin.top) / plotH * (yMax - yMin))
+    : (py => yMin + (margin.top + plotH - py) / plotH * (yMax - yMin));
+
+  panel.scales = { isMap: false, xInv, yInv };
+
+  const NT = 5;
+  const xTicks = [], xTickLabels = [], yTicks = [], yTickLabels = [];
+  for (let i = 0; i <= NT; i++) {
+    const xv = xMin + (xMax - xMin) * i / NT;
+    xTicks.push(xScale(xv));
+    xTickLabels.push(xv.toFixed(1));
+    const yv = yMin + (yMax - yMin) * i / NT;
+    yTicks.push(yScale(yv));
+    yTickLabels.push(yv.toFixed(0));
+  }
+
+  drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, xLabel, field.yLabel, panel.chartType);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(margin.left, margin.top, plotW, plotH);
+  ctx.clip();
+
+  for (const s of series) {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < s.x.length; i++) {
+      const xv = s.x[i], yv = s.y[i];
+      if (xv === null || yv === null || yv === undefined) { started = false; continue; }
+      const px = xScale(xv), py = yScale(yv);
+      if (!started) { ctx.moveTo(px, py); started = true; }
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  if (App.markerX !== null) {
+    const mx = xScale(App.markerX);
+    ctx.strokeStyle = "#555555";
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(mx, margin.top);
+    ctx.lineTo(mx, margin.top + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    for (const s of series) {
+      const idx = nearestIndex(s.x, App.markerX);
+      if (idx === null) continue;
+      const yv = s.y[idx];
+      if (yv === null || yv === undefined) continue;
+      const px = xScale(s.x[idx]), py = yScale(yv);
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      const text = yv.toFixed(1);
+      ctx.font = "bold 11px ui-sans-serif";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#14181c";
+      ctx.textAlign = "left";
+      ctx.strokeText(text, px + 7, py - 6);
+      ctx.fillStyle = s.color;
+      ctx.fillText(text, px + 7, py - 6);
+    }
+  }
+
+  ctx.restore();
+
+  drawLegendTopRight(ctx, cssWidth, margin, series.map(s => ({ color: s.color, label: s.label })));
+  if (App.markerX !== null) drawMarkerBadge(ctx, margin, formatMarkerText());
+}
+
+function drawRouteMap(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, plotH) {
+  let lonMin = null, lonMax = null, latMin = null, latMax = null;
+  for (const row of loaded) {
+    for (let i = 0; i < row.data.lon.length; i++) {
+      const lo = row.data.lon[i], la = row.data.lat[i];
+      if (lonMin === null || lo < lonMin) lonMin = lo;
+      if (lonMax === null || lo > lonMax) lonMax = lo;
+      if (latMin === null || la < latMin) latMin = la;
+      if (latMax === null || la > latMax) latMax = la;
+    }
+  }
+  if (lonMin === null) { panel.scales = null; return; }
+
+  const meanLat = (latMin + latMax) / 2;
+  const lonCorrection = Math.cos(meanLat * Math.PI / 180) || 1;
+
+  let lonSpan = (lonMax - lonMin) || 0.001;
+  let latSpan = (latMax - latMin) || 0.001;
+  const lonSpanCorrected = lonSpan * lonCorrection;
+
+  const targetRatio = plotW / plotH;
+  const currentRatio = lonSpanCorrected / latSpan;
+
+  if (currentRatio > targetRatio) {
+    const neededLatSpan = lonSpanCorrected / targetRatio;
+    const extra = (neededLatSpan - latSpan) / 2;
+    latMin -= extra; latMax += extra; latSpan = neededLatSpan;
+  } else {
+    const neededLonSpanCorrected = latSpan * targetRatio;
+    const neededLonSpan = neededLonSpanCorrected / lonCorrection;
+    const extra = (neededLonSpan - lonSpan) / 2;
+    lonMin -= extra; lonMax += extra; lonSpan = neededLonSpan;
+  }
+  const padLon = lonSpan * 0.04, padLat = latSpan * 0.04;
+  lonMin -= padLon; lonMax += padLon; latMin -= padLat; latMax += padLat;
+
+  const xScale = lon => margin.left + (lon - lonMin) / (lonMax - lonMin) * plotW;
+  const xInv = px => lonMin + (px - margin.left) / plotW * (lonMax - lonMin);
+  const yScale = lat => margin.top + plotH - (lat - latMin) / (latMax - latMin) * plotH;
+  const yInv = py => latMin + (margin.top + plotH - py) / plotH * (latMax - latMin);
+
+  panel.scales = { isMap: true, xInv, yInv };
+
+  const NT = 5;
+  const xTicks = [], xTickLabels = [], yTicks = [], yTickLabels = [];
+  for (let i = 0; i <= NT; i++) {
+    const lv = lonMin + (lonMax - lonMin) * i / NT;
+    xTicks.push(xScale(lv)); xTickLabels.push(lv.toFixed(3));
+    const la = latMin + (latMax - latMin) * i / NT;
+    yTicks.push(yScale(la)); yTickLabels.push(la.toFixed(3));
+  }
+  drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, "Longitude", "Latitude", "Route");
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(margin.left, margin.top, plotW, plotH);
+  ctx.clip();
+
+  for (const row of loaded) {
+    ctx.strokeStyle = row.color;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < row.data.lon.length; i++) {
+      const px = xScale(row.data.lon[i]), py = yScale(row.data.lat[i]);
+      if (!started) { ctx.moveTo(px, py); started = true; }
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  let anyMarker = false;
+  if (App.markerX !== null) {
+    for (const row of loaded) {
+      const domainArr = getDomainArray(row.data, App.xAxisMode);
+      const idx = nearestIndex(domainArr, App.markerX);
+      if (idx === null) continue;
+      const px = xScale(row.data.lon[idx]), py = yScale(row.data.lat[idx]);
+      ctx.fillStyle = row.color;
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      anyMarker = true;
+    }
+  }
+
+  ctx.restore();
+
+  drawLegendTopRight(ctx, cssWidth, margin, loaded.map(r => ({ color: r.color, label: r.data.label })));
+  if (anyMarker) drawMarkerBadge(ctx, margin, formatMarkerText());
+}
+
+function redrawAll() {
+  for (const panel of App.panels) panel.redraw();
+}
+
+// ---------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------
+
+createChartPanel("left-column", "Left chart", "Heart Rate");
+createChartPanel("right-column", "Right chart", "Pace");
+addActivityRow();
+addActivityRow();
+redrawAll();
+
+</script>
+</body>
+</html>
