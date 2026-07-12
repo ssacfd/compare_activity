@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to use — GPX Activity Compare</title>
+<style>
+  :root {
+    --bg: #14181c;
+    --panel: #1c2126;
+    --panel-alt: #20262c;
+    --border: #2a3138;
+    --text: #e9ece9;
+    --text-dim: #8b959c;
+    --accent: #e8a33d;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    padding: 20px;
+    max-width: 860px;
+    margin-inline: auto;
+    line-height: 1.55;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin: 0 0 4px 0;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin: 0 0 18px 0;
+  }
+
+  .back-link {
+    display: inline-block;
+    text-decoration: none;
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+  .back-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  h2 {
+    font-size: 1.05rem;
+    margin: 0 0 6px 0;
+  }
+
+  h3 {
+    font-size: 0.92rem;
+    margin: 18px 0 4px 0;
+    color: var(--text);
+  }
+
+  p { margin: 0 0 10px 0; color: var(--text); font-size: 0.92rem; }
+  p.dim { color: var(--text-dim); font-size: 0.85rem; }
+
+  ol, ul {
+    margin: 0 0 12px 0;
+    padding-left: 22px;
+    font-size: 0.92rem;
+  }
+  li { margin-bottom: 6px; }
+
+  code {
+    font-family: var(--mono);
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.85em;
+    color: var(--accent);
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  .note-box {
+    background: var(--panel-alt);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin: 10px 0;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88rem;
+    margin: 10px 0;
+  }
+  th, td {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td { color: var(--text-dim); }
+  td.k { color: var(--text); font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>How to use GPX Activity Compare</h1>
+    <p class="subtitle">Getting your data out of Garmin Connect, and how each control on the page works.</p>
+  </div>
+  <a class="back-link" href="index.html">← Back to app</a>
+</div>
+
+<div class="panel">
+  <div class="panel-title">1. Getting a GPX file out of Garmin Connect</div>
+
+  <h3>On desktop (recommended — the most reliable path)</h3>
+  <ol>
+    <li>Go to <code>connect.garmin.com</code> and sign in.</li>
+    <li>In the left-hand menu, click <strong>Activities → All Activities</strong>.</li>
+    <li>Click the specific activity you want, to open its detail page.</li>
+    <li>In the top-right corner of the activity page, click the gear/cog icon (⚙) —
+      on some screen sizes this shows as a three-dot menu (⋯) instead.</li>
+    <li>Select <strong>Export to GPX</strong> from the dropdown.</li>
+    <li>Your browser downloads a <code>.gpx</code> file, usually named after the
+      activity or the date — that's the file you'll load into this tool.</li>
+  </ol>
+
+  <h3>On mobile</h3>
+  <p>The Garmin Connect mobile app doesn't offer a direct "Export to GPX" button in
+    every version. Two workarounds:</p>
+  <ul>
+    <li>Open <code>connect.garmin.com</code> in your phone's browser (not the app) and
+      follow the desktop steps above — the site is responsive and works the same way.</li>
+    <li>In the app, open the activity and tap the share icon; on some versions
+      "Export to GPX" appears there directly or under "More options."</li>
+  </ul>
+
+  <div class="note-box">
+    A GPX export contains GPS position, barometric elevation (if your device has that
+    sensor), and heart rate. It does <strong>not</strong> include cadence or power on
+    every device/export path — those extensions vary. If your file is missing cadence
+    or heart rate, this tool will simply show an empty line for that chart rather than
+    an error.
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">2. Activities panel</div>
+  <p>Each row represents one activity you're comparing.</p>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td class="k">Load GPX</td><td>Opens your file picker to choose a <code>.gpx</code> file for that row.</td></tr>
+    <tr><td class="k">Name / label</td><td>Generated automatically from the activity's name or description
+      inside the GPX file, plus its start date and time — there's nothing to type in.
+      If the file has no name or description, it falls back to "Activity".</td></tr>
+    <tr><td class="k">Color swatch</td><td>Click it to pick that activity's color on both charts and the route map.</td></tr>
+    <tr><td class="k">Remove</td><td>Drops that activity from the comparison entirely.</td></tr>
+    <tr><td class="k">+ Add Activity</td><td>Adds another row — there's no limit on how many activities you can compare at once.</td></tr>
+  </table>
+</div>
+
+<div class="panel">
+  <div class="panel-title">3. Linked X-axis</div>
+  <p>This one control governs <strong>both</strong> charts at the same time — there's
+    intentionally no separate X-axis setting per chart, so the two views always line up.</p>
+  <ul>
+    <li><strong>X axis: Time / Distance</strong> — switch whether the horizontal axis
+      represents elapsed minutes or cumulative distance. Useful for comparing, say,
+      heart rate "5 km into the run" across two activities of different lengths.</li>
+    <li><strong>X min / X max + Apply</strong> — crop both charts to a specific window,
+      e.g. minutes 10–20, or km 3–5.</li>
+    <li><strong>Auto</strong> — clears the manual range and goes back to fitting all
+      loaded data.</li>
+    <li><strong>Clear marker</strong> — removes the marker (see below) from both charts.</li>
+  </ul>
+</div>
+
+<div class="panel">
+  <div class="panel-title">4. Left chart / Right chart</div>
+  <p>Two independent chart panels, side by side. Each has its own:</p>
+  <ul>
+    <li><strong>Chart type</strong> — Route Map, Heart Rate, Cadence, Pace, or Elevation.
+      The two panels don't have to match — compare Heart Rate on the left against
+      Pace on the right, for instance.</li>
+    <li><strong>Y min / Y max + Apply / Auto</strong> — same pattern as the shared
+      X-axis, but per chart and per Y-axis, since BPM, steps/min, min/km, and meters
+      obviously don't share a scale.</li>
+  </ul>
+  <p class="dim">Switching a panel's chart type automatically clears that panel's
+    manual Y-range, since a leftover range from a different chart type (say, a
+    heart-rate range of 60–180 mistakenly applied to a pace chart) would make the
+    new chart look broken rather than actually being broken.</p>
+</div>
+
+<div class="panel">
+  <div class="panel-title">5. The marker</div>
+  <p>Click and drag inside either chart to drop a marker and inspect a specific moment
+    of the activity.</p>
+  <ul>
+    <li>On a <strong>Heart Rate / Cadence / Pace / Elevation</strong> chart: a vertical
+      line appears, with a small dot and value label on each activity's line at that
+      position.</li>
+    <li>On the <strong>Route Map</strong>: there's no time/distance axis to click on
+      directly, so the marker instead snaps to whichever trackpoint (on any activity's
+      route) is physically closest to where you clicked.</li>
+  </ul>
+  <p>Whichever chart you drag in, <strong>both panels update together</strong> — the
+    marker isn't a pixel position, it's stored as one Time or Distance value shared by
+    the whole page. So dragging along a route on the map instantly moves the vertical
+    line on a Pace chart shown next to it, and vice versa.</p>
+</div>
+
+<div class="panel">
+  <div class="panel-title">6. Things worth knowing</div>
+  <ul>
+    <li><strong>Cadence is multiplied by 2.</strong> Garmin often stores cadence as
+      steps-per-minute of a single leg; doubling it matches what Garmin Connect
+      displays as total cadence. If your device already reports the total, this will
+      overstate it — check one known activity against Garmin Connect if you're unsure.</li>
+    <li><strong>The Route Map isn't a real map.</strong> There are no streets, terrain,
+      or map tiles — it's a to-scale plot of latitude and longitude, corrected so the
+      shape isn't stretched, but nothing more.</li>
+    <li><strong>Nothing leaves your browser.</strong> GPX files are read locally by
+      your browser's JavaScript; this page makes no network requests at all, so it
+      works even with no internet connection once loaded.</li>
+  </ul>
+</div>
+
+</body>
+</html>
