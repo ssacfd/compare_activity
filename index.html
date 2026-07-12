@@ -168,12 +168,38 @@
   @media (max-width: 820px) {
     .charts-row { flex-direction: column; }
   }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .manual-link {
+    display: inline-block;
+    text-decoration: none;
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+  .manual-link:hover { border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
 
-<h1>GPX Activity Compare</h1>
-<p class="subtitle">Runs entirely in your browser — no files are uploaded anywhere.</p>
+<div class="top-bar">
+  <div>
+    <h1>GPX Activity Compare</h1>
+    <p class="subtitle">Runs entirely in your browser — no files are uploaded anywhere.</p>
+  </div>
+  <a class="manual-link" href="manual.html">How to use this page →</a>
+</div>
 
 <div class="panel">
   <div class="panel-title">Activities</div>
