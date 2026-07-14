@@ -136,6 +136,20 @@
     align-items: center;
   }
 
+  .xaxis-bar.compact {
+    gap: 12px;
+  }
+  .xaxis-bar.compact .field-label { font-size: 0.75rem; }
+  .xaxis-bar.compact select,
+  .xaxis-bar.compact button,
+  .xaxis-bar.compact input[type=number] {
+    padding: 4px 8px;
+    font-size: 0.78rem;
+  }
+  .xaxis-bar.compact input[type=color] {
+    width: 26px; height: 24px;
+  }
+
   .charts-row {
     display: flex;
     gap: 14px;
@@ -195,6 +209,19 @@
     white-space: nowrap;
   }
   .manual-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  .nav-links {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .legend-input {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    min-width: 160px;
+    flex: 1 1 220px;
+  }
 </style>
 </head>
 <body>
@@ -204,8 +231,12 @@
     <h1>GPX Activity Compare</h1>
     <p class="subtitle">Runs entirely in your browser — no files are uploaded anywhere.</p>
   </div>
-  <a class="manual-link" href="manual.html">How to use this page →</a>
+  <div class="nav-links">
+    <a class="manual-link" href="manual.html">How to use this page →</a>
+    <a class="manual-link" href="feedback.html">Send feedback →</a>
+  </div>
 </div>
+
 
 <div class="panel">
   <div class="panel-title">Activities</div>
@@ -214,8 +245,8 @@
 </div>
 
 <div class="panel">
-  <div class="panel-title">Linked X-axis (applies to both charts)</div>
-  <div class="xaxis-bar">
+  <div class="panel-title">Chart controls</div>
+  <div class="xaxis-bar compact">
     <div class="field-group">
       <span class="field-label">X axis:</span>
       <select id="xaxis-mode">
@@ -233,18 +264,11 @@
     </div>
     <button id="clear-marker-btn">Clear marker</button>
   </div>
-</div>
-
-<div class="panel">
-  <div class="panel-title">Chart appearance (applies to both charts)</div>
-  <div class="xaxis-bar">
+  <div class="xaxis-bar compact" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
     <div class="field-group">
       <label class="field-label" style="display:flex; align-items:center; gap:6px;">
-        <input type="checkbox" id="legend-toggle" checked> Show legend
+        <input type="checkbox" id="legend-toggle" checked> Legend
       </label>
-    </div>
-    <div class="field-group">
-      <span class="field-label">Legend position:</span>
       <select id="legend-position-select">
         <option value="top-right">Top right</option>
         <option value="top-left">Top left</option>
@@ -253,16 +277,14 @@
       </select>
     </div>
     <div class="field-group">
-      <span class="field-label">Text size:</span>
-      <input type="number" id="text-size-input" min="8" max="20" step="1" value="11" style="width:60px;">
+      <span class="field-label">Text:</span>
+      <input type="number" id="text-size-input" min="8" max="20" step="1" value="11" style="width:55px;">
       <span class="field-label">px</span>
     </div>
     <div class="field-group">
-      <span class="field-label">Background:</span>
+      <span class="field-label">Bg:</span>
       <input type="color" id="bg-color-input" value="#20262c">
-    </div>
-    <div class="field-group">
-      <span class="field-label">Foreground:</span>
+      <span class="field-label">Fg:</span>
       <input type="color" id="fg-color-input" value="#e9ece9">
     </div>
   </div>
@@ -343,6 +365,11 @@ function nearestIndex(arr, target) {
     if (bestDiff === null || diff < bestDiff) { bestDiff = diff; bestIdx = i; }
   }
   return bestIdx;
+}
+
+function getActivityLabel(row) {
+  if (row.legend && row.legend.trim()) return row.legend.trim();
+  return row.data ? row.data.label : `Activity`;
 }
 
 function getDomainArray(data, mode) {
@@ -432,9 +459,14 @@ function parseGPX(text) {
   let hrSum = 0, hrCount = 0;
   for (const v of data.hr) { if (v !== null && v !== undefined) { hrSum += v; hrCount++; } }
   const avgHr = hrCount ? hrSum / hrCount : null;
+
+  let cadSum = 0, cadCount = 0;
+  for (const v of data.cad) { if (v !== null && v !== undefined) { cadSum += v; cadCount++; } }
+  const avgCad = cadCount ? cadSum / cadCount : null;
+
   const avgPaceMinPerKm = totalDistKm > 0 ? (totalSeconds / 60) / totalDistKm : null;
 
-  data.stats = { avgHr, avgPaceMinPerKm, totalSeconds, totalDistKm };
+  data.stats = { avgHr, avgCad, avgPaceMinPerKm, totalSeconds, totalDistKm };
 
   let label = firstText(doc, ["trk > name", "metadata > name", "gpx > name"]) ||
               firstText(doc, ["trk > desc", "metadata > desc", "gpx > desc"]) ||
@@ -488,7 +520,7 @@ function defaultColor(i) { return COLOR_PALETTE[i % COLOR_PALETTE.length]; }
 
 function addActivityRow() {
   const id = App.nextId++;
-  const row = { id, data: null, color: defaultColor(App.activities.length) };
+  const row = { id, data: null, color: defaultColor(App.activities.length), legend: null };
   App.activities.push(row);
 
   const container = document.getElementById("activities-container");
@@ -497,7 +529,7 @@ function addActivityRow() {
   el.innerHTML = `
     <button class="load-btn">Load GPX</button>
     <input type="file" accept=".gpx" style="display:none">
-    <span class="activity-label">No file loaded</span>
+    <input type="text" class="legend-input" placeholder="Legend label (auto-filled once loaded)">
     <span class="activity-stats"></span>
     <input type="color" value="${row.color}">
     <button class="remove-btn">Remove</button>
@@ -506,7 +538,7 @@ function addActivityRow() {
 
   const fileInput = el.querySelector("input[type=file]");
   const loadBtn = el.querySelector(".load-btn");
-  const labelSpan = el.querySelector(".activity-label");
+  const legendInput = el.querySelector(".legend-input");
   const statsSpan = el.querySelector(".activity-stats");
   const colorInput = el.querySelector("input[type=color]");
   const removeBtn = el.querySelector(".remove-btn");
@@ -519,8 +551,8 @@ function addActivityRow() {
     reader.onload = () => {
       try {
         row.data = parseGPX(reader.result);
-        labelSpan.textContent = row.data.label;
-        labelSpan.classList.add("loaded");
+        legendInput.value = row.data.label;
+        row.legend = row.data.label;
         statsSpan.textContent = formatStatsLine(row.data.stats);
         redrawAll();
       } catch (err) {
@@ -528,6 +560,11 @@ function addActivityRow() {
       }
     };
     reader.readAsText(file);
+  });
+
+  legendInput.addEventListener("input", () => {
+    row.legend = legendInput.value.trim() || (row.data ? row.data.label : "");
+    redrawAll();
   });
 
   colorInput.addEventListener("input", () => {
@@ -753,6 +790,34 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function lightenColor(hex, amount) {
+  let h = (hex || "#888888").replace("#", "");
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  let r = parseInt(h.substring(0, 2), 16) || 0;
+  let g = parseInt(h.substring(2, 4), 16) || 0;
+  let b = parseInt(h.substring(4, 6), 16) || 0;
+  r = Math.round(r + (255 - r) * amount);
+  g = Math.round(g + (255 - g) * amount);
+  b = Math.round(b + (255 - b) * amount);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+const WATERMARK_TEXT = "ssacfd.github.io/compare_activity";
+
+function drawWatermark(ctx, cssWidth, cssHeight, fg, textSize) {
+  const color = lightenColor(fg, 0.55);
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = color;
+  ctx.font = `${textSize}px ui-monospace, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.translate(cssWidth / 2, cssHeight / 2);
+  ctx.rotate(-Math.PI / 14);
+  ctx.fillText(WATERMARK_TEXT, 0, 0);
+  ctx.restore();
+}
+
 function autoRange(arrays) {
   let min = null, max = null;
   for (const arr of arrays) {
@@ -780,6 +845,7 @@ function drawPanel(panel) {
   ctx.clearRect(0, 0, cssWidth, cssHeight);
   ctx.fillStyle = App.chartBg;
   ctx.fillRect(0, 0, cssWidth, cssHeight);
+  drawWatermark(ctx, cssWidth, cssHeight, App.chartFg, App.textSize);
 
   const loaded = App.activities.filter(a => a.data);
   if (!loaded.length) {
@@ -892,6 +958,19 @@ function drawMarkerBadge(ctx, margin, text, textSize) {
   ctx.fillText(text, x + 7, y + h / 2 + 1);
 }
 
+function buildLegendLabel(row, chartType) {
+  const base = getActivityLabel(row);
+  const stats = row.data ? row.data.stats : null;
+  if (!stats) return base;
+  if (chartType === "Heart Rate") return `${base} — avg ${formatHr(stats.avgHr)}`;
+  if (chartType === "Cadence") {
+    const avgCadText = (stats.avgCad === null || stats.avgCad === undefined) ? "–" : `${Math.round(stats.avgCad)} spm`;
+    return `${base} — avg ${avgCadText}`;
+  }
+  if (chartType === "Pace") return `${base} — avg ${formatPace(stats.avgPaceMinPerKm)}`;
+  return base;
+}
+
 function drawDomainChart(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, plotH) {
   const field = FIELD_MAP[panel.chartType];
   const mode = App.xAxisMode;
@@ -901,7 +980,7 @@ function drawDomainChart(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW,
     x: getDomainArray(row.data, mode),
     y: smooth(row.data[field.key]),
     color: row.color,
-    label: row.data.label,
+    label: buildLegendLabel(row, panel.chartType),
   }));
 
   let [xMin, xMax] = autoRange(series.map(s => s.x));
@@ -1088,7 +1167,7 @@ function drawRouteMap(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, pl
 
   ctx.restore();
 
-  drawLegend(ctx, cssWidth, cssHeight, margin, loaded.map(r => ({ color: r.color, label: r.data.label })),
+  drawLegend(ctx, cssWidth, cssHeight, margin, loaded.map(r => ({ color: r.color, label: getActivityLabel(r) })),
              App.legendPosition, App.chartFg, App.textSize);
   if (anyMarker) drawMarkerBadge(ctx, margin, formatMarkerText(), App.textSize);
 }
