@@ -805,7 +805,7 @@ function lightenColor(hex, amount) {
 const WATERMARK_TEXT = "ssacfd.github.io/compare_activity";
 
 function drawWatermark(ctx, cssWidth, cssHeight, fg, textSize) {
-  const color = lightenColor(fg, 0.55);
+  const color = lightenColor(fg, 0.7);
   ctx.save();
   ctx.globalAlpha = 0.22;
   ctx.fillStyle = color;
