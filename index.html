@@ -159,7 +159,6 @@
     width: 100%;
     height: 420px;
     display: block;
-    background: var(--panel-alt);
     border: 1px solid var(--border);
     border-radius: 6px;
     cursor: crosshair;
@@ -233,6 +232,39 @@
       <button id="xrange-auto">Auto</button>
     </div>
     <button id="clear-marker-btn">Clear marker</button>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Chart appearance (applies to both charts)</div>
+  <div class="xaxis-bar">
+    <div class="field-group">
+      <label class="field-label" style="display:flex; align-items:center; gap:6px;">
+        <input type="checkbox" id="legend-toggle" checked> Show legend
+      </label>
+    </div>
+    <div class="field-group">
+      <span class="field-label">Legend position:</span>
+      <select id="legend-position-select">
+        <option value="top-right">Top right</option>
+        <option value="top-left">Top left</option>
+        <option value="bottom-right">Bottom right</option>
+        <option value="bottom-left">Bottom left</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <span class="field-label">Text size:</span>
+      <input type="number" id="text-size-input" min="8" max="20" step="1" value="11" style="width:60px;">
+      <span class="field-label">px</span>
+    </div>
+    <div class="field-group">
+      <span class="field-label">Background:</span>
+      <input type="color" id="bg-color-input" value="#20262c">
+    </div>
+    <div class="field-group">
+      <span class="field-label">Foreground:</span>
+      <input type="color" id="fg-color-input" value="#e9ece9">
+    </div>
   </div>
 </div>
 
@@ -445,6 +477,11 @@ const App = {
   sharedXMax: null,
   markerX: null,    // value in shared-domain units
   panels: [],
+  showLegend: true,
+  legendPosition: "top-right",  // top-right | top-left | bottom-right | bottom-left
+  textSize: 11,
+  chartBg: "#20262c",
+  chartFg: "#e9ece9",
 };
 
 function defaultColor(i) { return COLOR_PALETTE[i % COLOR_PALETTE.length]; }
@@ -539,6 +576,36 @@ document.getElementById("xrange-auto").addEventListener("click", () => {
 
 document.getElementById("clear-marker-btn").addEventListener("click", () => {
   App.markerX = null;
+  redrawAll();
+});
+
+// ---------------------------------------------------------------------
+// Chart appearance controls
+// ---------------------------------------------------------------------
+
+document.getElementById("legend-toggle").addEventListener("change", (evt) => {
+  App.showLegend = evt.target.checked;
+  redrawAll();
+});
+
+document.getElementById("legend-position-select").addEventListener("change", (evt) => {
+  App.legendPosition = evt.target.value;
+  redrawAll();
+});
+
+document.getElementById("text-size-input").addEventListener("input", (evt) => {
+  const v = parseInt(evt.target.value, 10);
+  App.textSize = isNaN(v) ? 11 : Math.max(6, Math.min(30, v));
+  redrawAll();
+});
+
+document.getElementById("bg-color-input").addEventListener("input", (evt) => {
+  App.chartBg = evt.target.value;
+  redrawAll();
+});
+
+document.getElementById("fg-color-input").addEventListener("input", (evt) => {
+  App.chartFg = evt.target.value;
   redrawAll();
 });
 
@@ -677,6 +744,15 @@ function formatMarkerText() {
 // Drawing
 // ---------------------------------------------------------------------
 
+function hexToRgba(hex, alpha) {
+  let h = (hex || "#888888").replace("#", "");
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  const r = parseInt(h.substring(0, 2), 16) || 0;
+  const g = parseInt(h.substring(2, 4), 16) || 0;
+  const b = parseInt(h.substring(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function autoRange(arrays) {
   let min = null, max = null;
   for (const arr of arrays) {
@@ -702,11 +778,13 @@ function drawPanel(panel) {
   const ctx = panel.ctx;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.fillStyle = App.chartBg;
+  ctx.fillRect(0, 0, cssWidth, cssHeight);
 
   const loaded = App.activities.filter(a => a.data);
   if (!loaded.length) {
-    ctx.fillStyle = "#8b959c";
-    ctx.font = "13px ui-sans-serif";
+    ctx.fillStyle = hexToRgba(App.chartFg, 0.6);
+    ctx.font = `${App.textSize + 2}px ui-sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText("Load one or more GPX files to begin", cssWidth / 2, cssHeight / 2);
     panel.scales = null;
@@ -724,10 +802,13 @@ function drawPanel(panel) {
   }
 }
 
-function drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, xLabel, yLabel, title) {
-  ctx.strokeStyle = "#2a3138";
-  ctx.fillStyle = "#8b959c";
-  ctx.font = "11px ui-monospace, monospace";
+function drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, xLabel, yLabel, title, fg, textSize) {
+  const gridColor = hexToRgba(fg, 0.15);
+  const dimColor = hexToRgba(fg, 0.65);
+
+  ctx.strokeStyle = gridColor;
+  ctx.fillStyle = dimColor;
+  ctx.font = `${textSize}px ui-monospace, monospace`;
   ctx.lineWidth = 1;
 
   ctx.textAlign = "right";
@@ -747,8 +828,8 @@ function drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, y
     ctx.fillText(xTickLabels[i], xTicks[i], margin.top + plotH + 8);
   }
 
-  ctx.fillStyle = "#e9ece9";
-  ctx.font = "12px ui-sans-serif";
+  ctx.fillStyle = fg;
+  ctx.font = `${textSize + 1}px ui-sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText(xLabel, margin.left + plotW / 2, margin.top + plotH + 26);
 
@@ -758,35 +839,50 @@ function drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, y
   ctx.fillText(yLabel, 0, 0);
   ctx.restore();
 
-  ctx.font = "13px ui-sans-serif";
+  ctx.font = `${textSize + 2}px ui-sans-serif`;
   ctx.fillStyle = "#e8a33d";
   ctx.textAlign = "left";
   ctx.fillText(title, margin.left, 16);
 }
 
-function drawLegendTopRight(ctx, cssWidth, margin, entries) {
-  ctx.font = "11px ui-sans-serif";
-  let ly = margin.top + 2;
+function drawLegend(ctx, cssWidth, cssHeight, margin, entries, position, fg, textSize) {
+  if (!App.showLegend || !entries.length) return;
+  ctx.font = `${textSize}px ui-sans-serif`;
+  const lineHeight = textSize + 5;
+  const isRight = position.indexOf("right") !== -1;
+  const isBottom = position.indexOf("bottom") !== -1;
+  let ly = isBottom ? (cssHeight - margin.bottom - entries.length * lineHeight - 2) : (margin.top + 2);
+
   for (const e of entries) {
     const textWidth = ctx.measureText(e.label).width;
-    const boxRight = cssWidth - 8;
-    ctx.fillStyle = e.color;
-    ctx.fillRect(boxRight - textWidth - 16, ly, 9, 9);
-    ctx.fillStyle = "#e9ece9";
-    ctx.textAlign = "right";
-    ctx.fillText(e.label, boxRight, ly + 9);
-    ly += 15;
+    if (isRight) {
+      const boxRight = cssWidth - 8;
+      ctx.fillStyle = e.color;
+      ctx.fillRect(boxRight - textWidth - 16, ly, 9, 9);
+      ctx.fillStyle = fg;
+      ctx.textAlign = "right";
+      ctx.fillText(e.label, boxRight, ly + 9);
+    } else {
+      const boxLeft = margin.left + 8;
+      ctx.fillStyle = e.color;
+      ctx.fillRect(boxLeft, ly, 9, 9);
+      ctx.fillStyle = fg;
+      ctx.textAlign = "left";
+      ctx.fillText(e.label, boxLeft + 14, ly + 9);
+    }
+    ly += lineHeight;
   }
 }
 
-function drawMarkerBadge(ctx, margin, text) {
+function drawMarkerBadge(ctx, margin, text, textSize) {
   if (!text) return;
-  ctx.font = "12px ui-monospace, monospace";
+  ctx.font = `${textSize + 1}px ui-monospace, monospace`;
   const w = ctx.measureText(text).width + 14;
   ctx.fillStyle = "rgba(255, 251, 224, 0.92)";
   ctx.strokeStyle = "#555555";
   ctx.lineWidth = 1;
-  const x = margin.left + 4, y = margin.top + 4, h = 18;
+  const h = textSize + 7;
+  const x = margin.left + 4, y = margin.top + 4;
   ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(x, y, w, h, 4); else ctx.rect(x, y, w, h);
   ctx.fill(); ctx.stroke();
@@ -840,7 +936,7 @@ function drawDomainChart(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW,
     yTickLabels.push(yv.toFixed(0));
   }
 
-  drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, xLabel, field.yLabel, panel.chartType);
+  drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, xLabel, field.yLabel, panel.chartType, App.chartFg, App.textSize);
 
   ctx.save();
   ctx.beginPath();
@@ -884,9 +980,9 @@ function drawDomainChart(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW,
       ctx.fill();
 
       const text = yv.toFixed(1);
-      ctx.font = "bold 11px ui-sans-serif";
+      ctx.font = `bold ${App.textSize}px ui-sans-serif`;
       ctx.lineWidth = 3;
-      ctx.strokeStyle = "#14181c";
+      ctx.strokeStyle = App.chartBg;
       ctx.textAlign = "left";
       ctx.strokeText(text, px + 7, py - 6);
       ctx.fillStyle = s.color;
@@ -896,8 +992,9 @@ function drawDomainChart(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW,
 
   ctx.restore();
 
-  drawLegendTopRight(ctx, cssWidth, margin, series.map(s => ({ color: s.color, label: s.label })));
-  if (App.markerX !== null) drawMarkerBadge(ctx, margin, formatMarkerText());
+  drawLegend(ctx, cssWidth, cssHeight, margin, series.map(s => ({ color: s.color, label: s.label })),
+             App.legendPosition, App.chartFg, App.textSize);
+  if (App.markerX !== null) drawMarkerBadge(ctx, margin, formatMarkerText(), App.textSize);
 }
 
 function drawRouteMap(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, plotH) {
@@ -951,7 +1048,7 @@ function drawRouteMap(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, pl
     const la = latMin + (latMax - latMin) * i / NT;
     yTicks.push(yScale(la)); yTickLabels.push(la.toFixed(3));
   }
-  drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, "Longitude", "Latitude", "Route");
+  drawAxesFrame(ctx, margin, plotW, plotH, xTicks, xTickLabels, yTicks, yTickLabels, "Longitude", "Latitude", "Route", App.chartFg, App.textSize);
 
   ctx.save();
   ctx.beginPath();
@@ -991,8 +1088,9 @@ function drawRouteMap(ctx, panel, loaded, cssWidth, cssHeight, margin, plotW, pl
 
   ctx.restore();
 
-  drawLegendTopRight(ctx, cssWidth, margin, loaded.map(r => ({ color: r.color, label: r.data.label })));
-  if (anyMarker) drawMarkerBadge(ctx, margin, formatMarkerText());
+  drawLegend(ctx, cssWidth, cssHeight, margin, loaded.map(r => ({ color: r.color, label: r.data.label })),
+             App.legendPosition, App.chartFg, App.textSize);
+  if (anyMarker) drawMarkerBadge(ctx, margin, formatMarkerText(), App.textSize);
 }
 
 function redrawAll() {
