@@ -233,7 +233,6 @@
   </div>
   <div class="nav-links">
     <a class="manual-link" href="manual.html">How to use this page →</a>
-    <a class="manual-link" href="feedback.html">Send feedback →</a>
   </div>
 </div>
 
@@ -805,7 +804,7 @@ function lightenColor(hex, amount) {
 const WATERMARK_TEXT = "ssacfd.github.io/compare_activity";
 
 function drawWatermark(ctx, cssWidth, cssHeight, fg, textSize) {
-  const color = lightenColor(fg, 0.7);
+  const color = lightenColor(fg, 0.3);
   ctx.save();
   ctx.globalAlpha = 0.22;
   ctx.fillStyle = color;
