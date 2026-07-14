@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Send Feedback — GPX Activity Compare</title>
+<style>
+  :root {
+    --bg: #14181c;
+    --panel: #1c2126;
+    --panel-alt: #20262c;
+    --border: #2a3138;
+    --text: #e9ece9;
+    --text-dim: #8b959c;
+    --accent: #e8a33d;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    padding: 20px;
+    max-width: 760px;
+    margin-inline: auto;
+    line-height: 1.55;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin: 0 0 4px 0;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin: 0 0 18px 0;
+  }
+
+  .back-link {
+    display: inline-block;
+    text-decoration: none;
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+  .back-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  p { margin: 0 0 10px 0; font-size: 0.92rem; }
+  p.dim { color: var(--text-dim); font-size: 0.85rem; }
+
+  label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+
+  select, textarea, input[type=email], input[type=text] {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 0.88rem;
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 8px 10px;
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 120px;
+    font-family: var(--mono);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  button, .btn-link {
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    border-radius: 5px;
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    background: var(--panel-alt);
+    color: var(--text);
+    text-decoration: none;
+    display: inline-block;
+  }
+  button:hover, .btn-link:hover { border-color: var(--accent); }
+
+  .primary {
+    background: var(--accent);
+    color: #14181c;
+    font-weight: 600;
+    border: none;
+  }
+  .primary:hover { opacity: 0.9; }
+
+  .note-box {
+    background: var(--panel-alt);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin: 14px 0 0 0;
+  }
+
+  code {
+    font-family: var(--mono);
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.85em;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>Send Feedback</h1>
+    <p class="subtitle">Found a bug, or have an idea for this tool? Let me know.</p>
+  </div>
+  <a class="back-link" href="index.html">← Back to app</a>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Your feedback</div>
+
+  <label for="fb-type">Type</label>
+  <select id="fb-type">
+    <option value="Bug report">Bug report</option>
+    <option value="Feature request">Feature request</option>
+    <option value="Question">Question</option>
+    <option value="General feedback">General feedback</option>
+  </select>
+
+  <label for="fb-message">Message</label>
+  <textarea id="fb-message" placeholder="What happened, or what would you like to see? If it's a bug, mention which chart/browser you were using."></textarea>
+
+  <label for="fb-email">Your email (optional, only if you'd like a reply)</label>
+  <input type="email" id="fb-email" placeholder="you@example.com">
+
+  <div class="btn-row">
+    <button class="primary" id="github-issue-btn">Open as a GitHub issue →</button>
+    <a class="btn-link" id="email-btn" href="#">Send by email instead →</a>
+  </div>
+
+  <div class="note-box">
+    This page is static (no backend, no database) — nothing is collected or stored
+    automatically. Both buttons above just open something for <em>you</em> to send:
+    a pre-filled GitHub issue, or a pre-filled email in your own mail client. Nothing
+    is submitted unless you complete that step yourself.
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// Update these two constants if the repo name or contact email ever changes.
+const GITHUB_REPO = "ssacfd/compare_activity";
+const CONTACT_EMAIL = "your-email@example.com";
+
+const typeSelect = document.getElementById("fb-type");
+const messageInput = document.getElementById("fb-message");
+const emailInput = document.getElementById("fb-email");
+
+document.getElementById("github-issue-btn").addEventListener("click", () => {
+  const type = typeSelect.value;
+  const message = messageInput.value.trim() || "(no details entered)";
+  const replyEmail = emailInput.value.trim();
+
+  const title = `[${type}] `;
+  let body = message;
+  if (replyEmail) body += `\n\n---\nReply email: ${replyEmail}`;
+
+  const url = `https://github.com/${GITHUB_REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  window.open(url, "_blank");
+});
+
+document.getElementById("email-btn").addEventListener("click", (evt) => {
+  evt.preventDefault();
+  const type = typeSelect.value;
+  const message = messageInput.value.trim() || "(no details entered)";
+  const subject = `GPX Activity Compare — ${type}`;
+  const body = message;
+  window.location.href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+});
+</script>
+
+</body>
+</html>
